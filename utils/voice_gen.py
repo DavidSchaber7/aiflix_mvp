@@ -1,9 +1,14 @@
-import os, json, requests, re, tempfile
-from dotenv import load_dotenv
+import json
+import logging
+import os
+import re
+import requests
+import tempfile
 
-load_dotenv()
-ELEVEN_API_KEY = os.getenv("ELEVEN_API_KEY", "").strip()
-VOICE_ID_ENV = os.getenv("ELEVEN_VOICE_ID", "").strip()
+from utils import config
+
+ELEVEN_API_KEY = config.get_env("ELEVEN_API_KEY", "").strip()
+VOICE_ID_ENV = config.get_env("ELEVEN_VOICE_ID", "").strip()
 
 ELEVEN_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
 HEADERS_JSON = {"xi-api-key": ELEVEN_API_KEY, "accept":"audio/mpeg", "content-type":"application/json"}
@@ -49,11 +54,12 @@ def _shorten_for_tts(full_script: str, hard_cap=6000):
     return text[:hard_cap]
 
 def extract_voice_script(full_script: str) -> str:
+    """Reduce the full script to text suitable for TTS."""
     return _shorten_for_tts(full_script, hard_cap=6000)
 
 def generate_voice(script_text: str, out_path="assets/audio/voice.mp3") -> str | None:
     if not ELEVEN_API_KEY:
-        print("⚠️ ELEVEN_API_KEY fehlt – überspringe Voice.")
+        logging.warning("ELEVEN_API_KEY fehlt – überspringe Voice.")
         return None
 
     os.makedirs("assets/audio", exist_ok=True)
@@ -61,7 +67,7 @@ def generate_voice(script_text: str, out_path="assets/audio/voice.mp3") -> str |
     try:
         voice_id = _pick_voice_id()
     except Exception as e:
-        print(f"⚠️ Konnte Voice-ID nicht ermitteln: {e}. Rendere ohne Voice.")
+        logging.warning("Konnte Voice-ID nicht ermitteln: %s. Rendere ohne Voice.", e)
         return None
 
     text = extract_voice_script(script_text)
@@ -80,8 +86,8 @@ def generate_voice(script_text: str, out_path="assets/audio/voice.mp3") -> str |
 
             # **Robustes Fehlerhandling**: bei 400/401/402/429 -> ohne Voice weitermachen
             if r.status_code in (400, 401, 402, 429):
-                print(f"ℹ️ ElevenLabs Problem (HTTP {r.status_code}): {r.text[:200]}")
-                print("→ Rendere Episode ohne Voiceover.")
+                logging.info("ElevenLabs Problem (HTTP %s): %s", r.status_code, r.text[:200])
+                logging.info("→ Rendere Episode ohne Voiceover.")
                 return None
 
             r.raise_for_status()  # andere Fehler normal melden
@@ -107,5 +113,8 @@ def generate_voice(script_text: str, out_path="assets/audio/voice.mp3") -> str |
         return out_path
     finally:
         for p in tmp_files:
-            try: os.remove(p)
-            except: pass
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+
