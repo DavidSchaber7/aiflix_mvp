@@ -1,4 +1,6 @@
+import logging
 import os
+from utils import config
 try:
     # MoviePy v2 (neuer Importpfad)
     from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
@@ -29,7 +31,10 @@ def _ensure_image(path, idx):
     img.save(out)
     return out
 
-def compose_video(script_text: str, images: list, voice_file: str | None, fps=24, seconds_per_image=12):
+def compose_video(
+    script_text: str, images: list, voice_file: str | None, fps=24, seconds_per_image=12
+):
+    """Combine images and optional narration into a video file."""
     os.makedirs("assets/out", exist_ok=True)
 
     if not images:
@@ -59,8 +64,9 @@ def compose_video(script_text: str, images: list, voice_file: str | None, fps=24
         # v2: with_audio, v1: set_audio
         video = _with_audio(video, narration)
     else:
-        print("ℹ️ Kein Voiceover vorhanden – rendere Video ohne Ton.")
+        logging.info("Kein Voiceover vorhanden – rendere Video ohne Ton.")
 
     out_path = "assets/out/episode.mp4"
     video.write_videofile(out_path, fps=fps, codec="libx264", audio_codec="aac")
     return out_path
+

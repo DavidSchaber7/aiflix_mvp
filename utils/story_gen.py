@@ -1,9 +1,8 @@
+import logging
 import os
-from dotenv import load_dotenv
-from openai import OpenAI, BadRequestError
+from openai import BadRequestError
 
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from utils import config
 
 SYSTEM = """Du bist ein preisgekrönter Serienautor.
 Erzeuge ein vollständiges Episoden-Drehbuch für 20–40 Minuten.
@@ -19,12 +18,14 @@ Sprache: Deutsch. Filmisch, präzise, produktionstauglich.
 """
 
 def generate_script(user_wish: str) -> str:
+    """Create a full episode script from the viewer's wish via OpenAI."""
     prompt = f"""Wunsch des Zuschauers:
 {user_wish}
 
 Erzeuge das vollständige Skript gemäß der Struktur. Länge der finalen Episode: 20–40 Minuten."""
     models = ["gpt-5", "gpt-5-chat-latest"]  # Fallback, falls das erste Modell Parameter nicht akzeptiert
     last_err = None
+    client = config.get_openai_client()
     for m in models:
         try:
             resp = client.responses.create(
@@ -48,3 +49,4 @@ Erzeuge das vollständige Skript gemäß der Struktur. Länge der finalen Episod
     if last_err:
         raise last_err
     raise RuntimeError("Unbekannter Fehler beim Generieren des Skripts.")
+
